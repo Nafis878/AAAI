@@ -1,0 +1,15 @@
+{
+  "pe": "learned",
+  "seed": 0,
+  "p": 113,
+  "op": "add",
+  "frac": 0.3,
+  "layers": 1,
+  "lr": 0.001,
+  "wd": 1.0,
+  "epochs": 500,
+  "threads": 4,
+  "ckpt_every": 500,
+  "ood_a_range": null,
+  "run_name": "smoke_learned_s0"
+}

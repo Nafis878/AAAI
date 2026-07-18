@@ -33,8 +33,8 @@
 ### Core grid (Day 2)
 **5 PE × 5 seeds (0–4) × {1-layer, p=113, add, frac 0.3} = 25 runs**, plus ablations (§4).
 
-### Metrics (logged per epoch to CSV; checkpoints every 500 epochs + final)
-1. Train/val loss and accuracy (every epoch).
+### Metrics (logged to CSV; checkpoints every 500 epochs + final; grid runs log every 5 epochs — measured compute cut, see §4 and decisions.md D10)
+1. Train/val loss and accuracy (every logged row).
 2. **Epochs-to-grok**: first epoch of the sustained (≥1,000-epoch) ≥99% val-acc window; ∞ (censored at 40k) if never.
 3. **Sharpness**: epochs from val acc 10% → 99%; and max d(val acc)/d(log₁₀ epoch).
 4. **Fourier concentration**: fraction of embedding-matrix and logit-spectrum power in the top-5 frequency pairs (Nanda's key-frequency analysis).
@@ -47,17 +47,43 @@
 ### Statistics
 Paired within-seed comparisons across PE conditions; report per-condition mean ± std over 5 seeds, Wilcoxon signed-rank tests (n=5 pairs, exact), and rank-consistency across seeds; effect sizes as median paired differences. Censored runs handled by rank statistics.
 
-## 3. Ablations (Day 2, after core grid, in priority order — cut from the bottom if time runs out)
-1. **Depth 2** (pre-LN): 5 PE × 3 seeds, p=113 add.
-2. **p = 97**: 5 PE × 3 seeds, add.
-3. **Operation**: subtraction and multiplication, 5 PE × 2 seeds, p=113.
-4. **Data fraction 0.5**: 5 PE × 3 seeds, p=113 add.
-5. **Weight decay ∈ {0.1, 0.3, 1.0}**: learned vs nope vs rope × 2 seeds.
-6. **OOD run set (H3)**: 5 PE × 3 seeds with row-band holdout.
+## 3. Ablations (Day 2, after core grid — executable ordering and sizes finalized in §4 Pass C after compute measurement)
+1. **Depth 2** (pre-LN): 5 PE × 2 seeds, p=113 add.
+2. **p = 97**: 5 PE × 2 seeds, add.
+3. **Operation**: subtraction and multiplication, {nope, learned, rope} × 1 seed, p=113.
+4. **OOD run set (H3)**: 5 PE × 2–3 seeds with row-band holdout — promoted into the core commitment (Pass B, §4).
+5. Weight-decay sweep and data-fraction 0.5 — dropped from Day 2 per measured budget (§4); revived only if Passes A–B finish early.
 
-## 4. Day-2 compute plan (calibrated from the Phase-4 smoke test — this section is finalized the same day, after measurement; see `smoke_test.md` for the raw numbers)
+## 4. Day-2 compute plan (calibrated from measured Phase-4 numbers; raw data in `smoke_test.md`)
 
-*(Placeholder pending the Phase-4 measurement — will be replaced with measured values before the end-of-day commit.)*
+**Measured on this machine (2026-07-18):** best throughput = **8 parallel single-thread workers, val eval every 5 epochs → 12.0 epochs/s aggregate** (8.3 s per 100 epochs effective per run). 12 workers OOM-crash (13.9 GB RAM ceiling); thread-scaling within a run saturates at 2.6×. Planning uses a conservative 11 ep/s.
+
+**The uncut 25-run × 40k-epoch grid would be ~25 h — over budget. Adopted cuts (decisions.md D10):**
+1. **Val eval every 5 epochs** for grid runs (measured 1.65× throughput; onset resolution ±5 epochs vs onsets ~10⁴). Train metrics still every logged row; smoke test verified identical training trajectory (eval is out-of-graph).
+2. **Epoch cap 15,000 first pass** (learned-APE baseline groks ~10–11k at these exact settings in Nanda et al.); runs censored at 15k are recorded as "onset > 15k" — itself an H1 datum. An overnight 40k extension pass is reserved for scientifically critical censored conditions (e.g., a PE that never groks in any seed).
+3. **Seeds staged:** core 4 seeds (0–3) then extend to 5; OOD 2 seeds (0–1) then extend to 3.
+
+**Run passes** (launcher presets in `src/launch.py`; commands in `smoke_test.md` §5):
+| Pass | Contents | Epochs worst | Hours worst (11 ep/s) | Expected |
+|---|---|---|---|---|
+| A (H1+H2 core) | 5 PE × seeds 0–3, ≤15k | 300k | 7.6 | ~6.5 |
+| B (H3 OOD) | 5 PE × seeds 0–1, holdout a∈[100,112], ≤15k | 150k | 3.8 | ~3.2 |
+| **A+B** | **hard Day-2 commitment** | **450k** | **11.4 ≤ 12 h budget** | **~9.7** |
+| C (slack/overnight, priority order) | core-ext (seed 4) → ood-ext (seed 2) → depth2 (5 PE × 2s) → p97 (5 PE × 2s) → ops (sub/mul × 3 PE × 1s) | ≤450k | overnight OK | — |
+
+Pass C replaces §3's original ablation list as the executable ordering; wd-sweep and frac-0.5 ablations are **dropped from Day 2** (first candidates to revive if Passes A–B finish early; otherwise noted as future work in the paper).
+
+### Day-2 hour-by-hour schedule (measured basis)
+| Hour | Work |
+|---|---|
+| 0:00–0:10 | Resume per CLAUDE.md; `pytest -q`; launch **Pass A** in background |
+| 0:10–2:30 | Implement `src/analysis.py`: Fourier concentration, restricted/excluded loss, uniform-ablation delta, onset/sharpness extraction; unit-test against `experiments/smoke_learned_s0` checkpoints |
+| 2:30–4:00 | Implement figure pipeline (matplotlib): dynamics curves per PE, onset box plots, signature scatter; test on partial Pass-A CSVs |
+| 4:00–6:45 | Monitor Pass A; run H1 analysis on completed runs incrementally |
+| ~6:45 | Pass A done (worst 7.6 h) → launch **Pass B**; full H1 stats (paired Wilcoxon, rank consistency) + H2 signatures on all Pass-A checkpoints |
+| 6:45–10:30 | H2 analysis + figures; Pass B completes (~10:30 worst) |
+| 10:30–11:30 | H3 analysis (signature vs PE-label OOD prediction, leave-one-run-out) |
+| 11:30–12:00 | `research/day2/RESULTS.md`; launch Pass C overnight; commit; update CLAUDE.md for Day 3 |
 
 ### Day-2 hour-by-hour schedule
 | Hour | Work |

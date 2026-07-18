@@ -1,0 +1,121 @@
+"""Minimal full-batch training loop for the PE x grokking experiments.
+
+One epoch = one full-batch AdamW step (proposal §2). Logs per-epoch metrics
+to experiments/<run_name>/log.csv and saves periodic checkpoints.
+
+Usage (from repo root, venv python):
+    python -m src.train --pe learned --seed 0 --epochs 500
+    python -m src.train --pe rope --seed 3 --p 97 --op sub --epochs 40000
+"""
+
+import argparse
+import csv
+import json
+import time
+from pathlib import Path
+
+import torch
+import torch.nn.functional as F
+
+from src.data import make_splits
+from src.model import PE_TYPES, build_model
+
+EARLY_STOP_WINDOW = 1000  # sustained >=99% val-acc epochs before stopping
+VAL_ACC_TARGET = 0.99
+
+
+def evaluate(model, x, y) -> tuple[float, float]:
+    with torch.no_grad():
+        logits = model(x)[:, -1, :]
+        loss = F.cross_entropy(logits, y).item()
+        acc = (logits.argmax(-1) == y).float().mean().item()
+    return loss, acc
+
+
+def train(args) -> Path:
+    torch.set_num_threads(args.threads)
+    torch.manual_seed(args.seed)
+
+    splits = make_splits(
+        p=args.p, op=args.op, frac=args.frac, seed=args.seed,
+        ood_a_range=tuple(args.ood_a_range) if args.ood_a_range else None,
+    )
+    model = build_model(args.p, args.pe, n_layers=args.layers)
+    opt = torch.optim.AdamW(
+        model.parameters(), lr=args.lr, weight_decay=args.wd, betas=(0.9, 0.98), eps=1e-8,
+    )
+
+    run_name = args.run_name or (
+        f"p{args.p}_{args.op}_f{args.frac}_{args.pe}_L{args.layers}_wd{args.wd}_s{args.seed}"
+        + ("_ood" if args.ood_a_range else "")
+    )
+    run_dir = Path("experiments") / run_name
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "config.json").write_text(json.dumps(vars(args), indent=2))
+
+    x_tr, y_tr = splits.x_train, splits.y_train
+    csv_path = run_dir / "log.csv"
+    sustained_evals = 0
+    t0 = time.perf_counter()
+
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["epoch", "train_loss", "train_acc", "val_loss", "val_acc", "ood_acc", "seconds"])
+        for epoch in range(args.epochs):
+            model.train()
+            opt.zero_grad(set_to_none=True)
+            logits = model(x_tr)[:, -1, :]
+            loss = F.cross_entropy(logits, y_tr)
+            loss.backward()
+            opt.step()
+
+            # Val eval every `eval_every` epochs (compute-cut D10: val forward
+            # is ~40% of epoch cost; onset resolution stays within eval_every).
+            if epoch % args.eval_every == 0 or epoch == args.epochs - 1:
+                model.eval()
+                train_acc = (logits.argmax(-1) == y_tr).float().mean().item()
+                val_loss, val_acc = evaluate(model, splits.x_val, splits.y_val)
+                ood_acc = ""
+                if splits.x_ood.shape[0]:
+                    _, ood_acc = evaluate(model, splits.x_ood, splits.y_ood)
+                writer.writerow(
+                    [epoch, f"{loss.item():.6f}", f"{train_acc:.4f}", f"{val_loss:.6f}",
+                     f"{val_acc:.4f}", ood_acc if ood_acc == "" else f"{ood_acc:.4f}",
+                     f"{time.perf_counter() - t0:.2f}"]
+                )
+                sustained_evals = sustained_evals + 1 if val_acc >= VAL_ACC_TARGET else 0
+
+            if epoch % args.ckpt_every == 0 or epoch == args.epochs - 1:
+                torch.save(model.state_dict(), run_dir / f"ckpt_{epoch:06d}.pt")
+
+            if sustained_evals * args.eval_every >= EARLY_STOP_WINDOW:
+                torch.save(model.state_dict(), run_dir / f"ckpt_{epoch:06d}.pt")
+                break
+
+    torch.save(model.state_dict(), run_dir / "ckpt_final.pt")
+    return csv_path
+
+
+def parse_args(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--pe", choices=PE_TYPES, required=True)
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--p", type=int, default=113)
+    ap.add_argument("--op", choices=("add", "sub", "mul"), default="add")
+    ap.add_argument("--frac", type=float, default=0.3)
+    ap.add_argument("--layers", type=int, default=1, choices=(1, 2))
+    ap.add_argument("--lr", type=float, default=1e-3)
+    ap.add_argument("--wd", type=float, default=1.0)
+    ap.add_argument("--epochs", type=int, default=40000)
+    ap.add_argument("--threads", type=int, default=4)
+    ap.add_argument("--ckpt-every", type=int, default=500)
+    ap.add_argument("--eval-every", type=int, default=1,
+                    help="run val/OOD eval every N epochs (Day-2 grid uses 5; see decisions.md D10)")
+    ap.add_argument("--ood-a-range", type=int, nargs=2, default=None,
+                    help="hold out all pairs with a in [LO, HI] as OOD eval (proposal: 100 112)")
+    ap.add_argument("--run-name", default=None)
+    return ap.parse_args(argv)
+
+
+if __name__ == "__main__":
+    train(parse_args())

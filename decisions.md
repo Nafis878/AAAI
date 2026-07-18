@@ -26,3 +26,9 @@ The NeurIPS 2025 unification paper (Moisescu-Pareja et al.) argues Clock and Piz
 
 **D8. Parameter-count bracket adjusted to fit the mandated architecture.**
 The brief fixes the Nanda-style config (1 layer, d_model 128, 4 heads, d_mlp 512, vocab 114, seq len 3) AND demands ~0.4–1.2M params — but that config computes to ~0.23M (embeds 29k + attention 65.5k + MLP 131k). The two constraints are mutually inconsistent. Resolution: the architecture wins (comparability with Nanda et al. 2301.05217 is the scientific point); the model.py assertion bracket is set to 0.2–1.2M and the discrepancy is disclosed here and in the proposal. The 2-layer variant (~0.42M) satisfies the original bracket.
+
+**D9. Parallelism config: 8 workers × 1 torch thread; 12 workers forbidden.**
+Measured (smoke_test.md §2–3): intra-run thread scaling saturates (16 threads only 2.6× over 1), so many single-thread processes win — 7.3 ep/s aggregate at 8×1 vs 5.2 ep/s for one 16-thread run. 12 workers crashed 6/12 processes with CPU-allocator OOM on this 13.9 GB machine. Hard ceiling: 8 concurrent runs; launcher (`src/launch.py`) defaults to 8.
+
+**D10. Day-2 compute cuts to fit the 12 h budget (measured necessity).**
+Uncut plan (25 × 40k epochs at measured 12 ep/s) ≈ 25 h — infeasible. Cuts: (a) val eval every 5 epochs in grid runs — measured 1.65× throughput, onset resolution loss negligible (±5 epochs vs ~10⁴-epoch onsets); (b) first-pass epoch cap 15k (baseline groks ~10–11k in Nanda et al.; censored runs are data, extension pass reserved); (c) staged seeds (core 4→5, OOD 2→3); (d) wd-sweep and frac-0.5 ablations dropped from Day 2. Full arithmetic in smoke_test.md §4; proposal §4 rewritten accordingly. H1–H3 all remain fully testable within the hard A+B commitment (worst case 11.4 h).

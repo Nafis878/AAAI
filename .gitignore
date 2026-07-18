@@ -1,0 +1,26 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+
+# Data & bulk artifacts (datasets are regenerated deterministically from src/data.py)
+data/
+logs/*.log
+experiments/**/*.pt
+experiments/**/*.ckpt
+experiments/**/checkpoints/
+
+# Keep small CSV metric logs under experiments/ in git (they are the record of runs)
+# but exclude anything large by extension:
+*.npz
+*.npy
+*.zip
+*.tar.gz
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/

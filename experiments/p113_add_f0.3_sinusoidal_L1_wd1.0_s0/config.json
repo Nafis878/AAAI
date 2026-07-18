@@ -1,0 +1,16 @@
+{
+  "pe": "sinusoidal",
+  "seed": 0,
+  "p": 113,
+  "op": "add",
+  "frac": 0.3,
+  "layers": 1,
+  "lr": 0.001,
+  "wd": 1.0,
+  "epochs": 15000,
+  "threads": 1,
+  "ckpt_every": 0,
+  "eval_every": 5,
+  "ood_a_range": null,
+  "run_name": null
+}

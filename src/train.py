@@ -24,6 +24,32 @@ EARLY_STOP_WINDOW = 1000  # sustained >=99% val-acc epochs before stopping
 VAL_ACC_TARGET = 0.99
 
 
+def ckpt_schedule(max_epochs: int, n_points: int = 35) -> set[int]:
+    """~35 log-spaced checkpoint epochs (dense early, sparse late), incl. 0."""
+    import numpy as np
+
+    pts = np.unique(np.round(np.logspace(0, np.log10(max(max_epochs - 1, 1)), n_points)).astype(int))
+    return {0, *pts.tolist()}
+
+
+def save_ckpt(model, path: Path) -> None:
+    """fp16 state_dict snapshot — disk is tight (7 GB free at Day-2 start)."""
+    half = {k: v.detach().half() for k, v in model.state_dict().items()}
+    torch.save(half, path)
+
+
+def load_ckpt(model, path: Path) -> None:
+    half = torch.load(path, map_location="cpu")
+    model.load_state_dict({k: v.float() for k, v in half.items()})
+
+
+def run_name_for(args) -> str:
+    return (
+        f"p{args.p}_{args.op}_f{args.frac}_{args.pe}_L{args.layers}_wd{args.wd}_s{args.seed}"
+        + ("_ood" if args.ood_a_range else "")
+    )
+
+
 def evaluate(model, x, y) -> tuple[float, float]:
     with torch.no_grad():
         logits = model(x)[:, -1, :]
@@ -45,13 +71,13 @@ def train(args) -> Path:
         model.parameters(), lr=args.lr, weight_decay=args.wd, betas=(0.9, 0.98), eps=1e-8,
     )
 
-    run_name = args.run_name or (
-        f"p{args.p}_{args.op}_f{args.frac}_{args.pe}_L{args.layers}_wd{args.wd}_s{args.seed}"
-        + ("_ood" if args.ood_a_range else "")
-    )
+    run_name = args.run_name or run_name_for(args)
     run_dir = Path("experiments") / run_name
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "config.json").write_text(json.dumps(vars(args), indent=2))
+    ckpt_dir = run_dir / "checkpoints"
+    ckpt_dir.mkdir(exist_ok=True)
+    schedule = ckpt_schedule(args.epochs) if args.ckpt_every == 0 else None
 
     x_tr, y_tr = splits.x_train, splits.y_train
     csv_path = run_dir / "log.csv"
@@ -85,14 +111,15 @@ def train(args) -> Path:
                 )
                 sustained_evals = sustained_evals + 1 if val_acc >= VAL_ACC_TARGET else 0
 
-            if epoch % args.ckpt_every == 0 or epoch == args.epochs - 1:
-                torch.save(model.state_dict(), run_dir / f"ckpt_{epoch:06d}.pt")
+            due = (epoch in schedule) if schedule is not None else (epoch % args.ckpt_every == 0)
+            if due or epoch == args.epochs - 1:
+                save_ckpt(model, ckpt_dir / f"ckpt_{epoch:06d}.pt")
 
             if sustained_evals * args.eval_every >= EARLY_STOP_WINDOW:
-                torch.save(model.state_dict(), run_dir / f"ckpt_{epoch:06d}.pt")
+                save_ckpt(model, ckpt_dir / f"ckpt_{epoch:06d}.pt")
                 break
 
-    torch.save(model.state_dict(), run_dir / "ckpt_final.pt")
+    save_ckpt(model, ckpt_dir / "ckpt_final.pt")
     return csv_path
 
 
@@ -108,7 +135,8 @@ def parse_args(argv=None):
     ap.add_argument("--wd", type=float, default=1.0)
     ap.add_argument("--epochs", type=int, default=40000)
     ap.add_argument("--threads", type=int, default=4)
-    ap.add_argument("--ckpt-every", type=int, default=500)
+    ap.add_argument("--ckpt-every", type=int, default=0,
+                    help="0 (default) = ~35 log-spaced checkpoints; N>0 = every N epochs")
     ap.add_argument("--eval-every", type=int, default=1,
                     help="run val/OOD eval every N epochs (Day-2 grid uses 5; see decisions.md D10)")
     ap.add_argument("--ood-a-range", type=int, nargs=2, default=None,

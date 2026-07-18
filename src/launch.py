@@ -19,6 +19,7 @@ import itertools
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 PES = ("nope", "learned", "sinusoidal", "rope", "alibi")
 CAP = "15000"
@@ -56,9 +57,22 @@ def main():
     ap.add_argument("--preset", required=True)
     ap.add_argument("--workers", type=int, default=8, help="max concurrent runs (8 = RAM ceiling, decisions.md D9)")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--skip-existing", action="store_true",
+                    help="skip jobs whose run dir already has checkpoints/ckpt_final.pt (idempotent relaunch)")
     args = ap.parse_args()
 
     queue = [COMMON + extra for extra in jobs_for(args.preset)]
+    if args.skip_existing:
+        from src.train import parse_args as train_parse, run_name_for
+
+        kept = []
+        for q in queue:
+            name = run_name_for(train_parse(q))
+            if (Path("experiments") / name / "checkpoints" / "ckpt_final.pt").exists():
+                print(f"[launch] skip (done): {name}")
+            else:
+                kept.append(q)
+        queue = kept
     print(f"[launch] preset={args.preset}: {len(queue)} jobs, {args.workers} workers")
     if args.dry_run:
         for q in queue:

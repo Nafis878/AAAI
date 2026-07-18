@@ -85,6 +85,8 @@ class Attention(nn.Module):
             self.register_buffer("alibi_bias", bias, persistent=False)
 
     def forward(self, x: torch.Tensor, uniform_attn: bool = False) -> torch.Tensor:
+        # When self.store_attn is set (analysis only), the softmaxed pattern is
+        # kept on self.last_attn; never set during training.
         b, t, _ = x.shape
         h, dh = self.cfg.n_heads, self.d_head
 
@@ -101,6 +103,8 @@ class Attention(nn.Module):
             scores = scores + self.alibi_bias.unsqueeze(0)
         scores = scores.masked_fill(self.causal_mask[:t, :t], float("-inf"))
         attn = scores.softmax(dim=-1)
+        if getattr(self, "store_attn", False):
+            self.last_attn = attn.detach()
         if uniform_attn:
             # Zhong et al.-style discriminator: replace attention with the
             # uniform-over-visible-positions pattern.

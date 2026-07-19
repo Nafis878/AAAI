@@ -52,6 +52,13 @@ def jobs_for(preset: str):
     elif preset == "ops":
         for op, pe in itertools.product(("sub", "mul"), ("nope", "learned", "rope")):
             yield ["--pe", pe, "--seed", "0", "--op", op]
+    elif preset == "extend40b":
+        # The 6 near-cap core runs (val>=0.99 at 14999, sustained window
+        # incomplete): extension resolves their onsets ~15k (D18).
+        targets = [("nope", 2), ("learned", 2), ("rope", 0), ("rope", 2), ("alibi", 0), ("alibi", 2)]
+        for pe, s in targets:
+            name = f"p113_add_f0.3_{pe}_L1_wd1.0_s{s}_x40"
+            yield ["--pe", pe, "--seed", str(s), "--epochs", "40000", "--run-name", name]
     elif preset == "extend40":
         # The 9 core runs still below 99% val acc at the 15k cap (worklog 10:53):
         # all 4 sinusoidal seeds + the mid/low-transition stragglers.

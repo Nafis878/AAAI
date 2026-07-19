@@ -1,17 +1,17 @@
 {
-  "pe": "sinusoidal",
-  "seed": 2,
+  "pe": "rope",
+  "seed": 4,
   "p": 113,
   "op": "add",
   "frac": 0.3,
   "layers": 1,
   "lr": 0.001,
   "wd": 1.0,
-  "epochs": 40000,
+  "epochs": 15000,
   "threads": 1,
   "ckpt_every": 0,
   "eval_every": 5,
   "resume_every": 1000,
   "ood_a_range": null,
-  "run_name": "p113_add_f0.3_sinusoidal_L1_wd1.0_s2_x40"
+  "run_name": null
 }

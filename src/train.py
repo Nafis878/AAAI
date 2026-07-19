@@ -43,6 +43,31 @@ def load_ckpt(model, path: Path) -> None:
     model.load_state_dict({k: v.float() for k, v in half.items()})
 
 
+def save_resume(run_dir: Path, model, opt, epoch: int, sustained_evals: int, elapsed: float) -> None:
+    """Atomic full-precision training-state snapshot for exact reboot recovery.
+    Full-batch training uses no RNG after init, so (model, opt, counters) is
+    the complete state: resumed runs are bit-identical to uninterrupted ones."""
+    tmp = run_dir / "resume.tmp"
+    torch.save({"model": model.state_dict(), "opt": opt.state_dict(),
+                "epoch": epoch, "sustained": sustained_evals, "elapsed": elapsed}, tmp)
+    tmp.replace(run_dir / "resume.pt")
+
+
+def _trim_csv(csv_path: Path, max_epoch: int) -> None:
+    """Drop rows past the resume point (they will be re-logged identically);
+    prevents duplicate epochs after a mid-run crash."""
+    if not csv_path.exists():
+        return
+    lines = csv_path.read_text().splitlines()
+    if not lines:
+        return
+    kept = [lines[0]] + [
+        ln for ln in lines[1:]
+        if ln.split(",", 1)[0].isdigit() and int(ln.split(",", 1)[0]) <= max_epoch
+    ]
+    csv_path.write_text("\n".join(kept) + "\n")
+
+
 def run_name_for(args) -> str:
     return (
         f"p{args.p}_{args.op}_f{args.frac}_{args.pe}_L{args.layers}_wd{args.wd}_s{args.seed}"
@@ -82,12 +107,26 @@ def train(args) -> Path:
     x_tr, y_tr = splits.x_train, splits.y_train
     csv_path = run_dir / "log.csv"
     sustained_evals = 0
+    start_epoch = 0
+    t_prev = 0.0
+    resume_path = run_dir / "resume.pt"
+    if resume_path.exists() and not (ckpt_dir / "ckpt_final.pt").exists():
+        st = torch.load(resume_path, map_location="cpu")
+        model.load_state_dict(st["model"])
+        opt.load_state_dict(st["opt"])
+        start_epoch = st["epoch"] + 1
+        sustained_evals = st["sustained"]
+        t_prev = st["elapsed"]
+        _trim_csv(csv_path, st["epoch"])
+        print(f"[train] resumed {run_name} at epoch {start_epoch}")
     t0 = time.perf_counter()
 
-    with open(csv_path, "w", newline="") as f:
+    new_log = start_epoch == 0 or not csv_path.exists()
+    with open(csv_path, "w" if new_log else "a", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["epoch", "train_loss", "train_acc", "val_loss", "val_acc", "ood_acc", "seconds"])
-        for epoch in range(args.epochs):
+        if new_log:
+            writer.writerow(["epoch", "train_loss", "train_acc", "val_loss", "val_acc", "ood_acc", "seconds"])
+        for epoch in range(start_epoch, args.epochs):
             model.train()
             opt.zero_grad(set_to_none=True)
             logits = model(x_tr)[:, -1, :]
@@ -107,9 +146,14 @@ def train(args) -> Path:
                 writer.writerow(
                     [epoch, f"{loss.item():.6f}", f"{train_acc:.4f}", f"{val_loss:.6f}",
                      f"{val_acc:.4f}", ood_acc if ood_acc == "" else f"{ood_acc:.4f}",
-                     f"{time.perf_counter() - t0:.2f}"]
+                     f"{t_prev + time.perf_counter() - t0:.2f}"]
                 )
                 sustained_evals = sustained_evals + 1 if val_acc >= VAL_ACC_TARGET else 0
+
+            if args.resume_every and epoch % args.resume_every == 0 and epoch > start_epoch:
+                f.flush()
+                save_resume(run_dir, model, opt, epoch, sustained_evals,
+                            t_prev + time.perf_counter() - t0)
 
             due = (epoch in schedule) if schedule is not None else (epoch % args.ckpt_every == 0)
             if due or epoch == args.epochs - 1:
@@ -139,6 +183,8 @@ def parse_args(argv=None):
                     help="0 (default) = ~35 log-spaced checkpoints; N>0 = every N epochs")
     ap.add_argument("--eval-every", type=int, default=1,
                     help="run val/OOD eval every N epochs (Day-2 grid uses 5; see decisions.md D10)")
+    ap.add_argument("--resume-every", type=int, default=1000,
+                    help="save exact-resume state every N epochs (0 disables); caps reboot loss at N epochs")
     ap.add_argument("--ood-a-range", type=int, nargs=2, default=None,
                     help="hold out all pairs with a in [LO, HI] as OOD eval (proposal: 100 112)")
     ap.add_argument("--run-name", default=None)

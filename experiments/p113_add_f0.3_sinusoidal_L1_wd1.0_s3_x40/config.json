@@ -11,6 +11,7 @@
   "threads": 1,
   "ckpt_every": 0,
   "eval_every": 5,
+  "resume_every": 1000,
   "ood_a_range": null,
   "run_name": "p113_add_f0.3_sinusoidal_L1_wd1.0_s3_x40"
 }

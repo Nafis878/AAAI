@@ -86,7 +86,7 @@ def _early_stopped(df: pd.DataFrame, cap: int) -> bool:
 
 
 RUN_RE = re.compile(
-    r"p(?P<p>\d+)_(?P<op>\w+?)_f(?P<frac>[\d.]+)_(?P<pe>\w+?)_L(?P<layers>\d)_wd(?P<wd>[\d.]+)_s(?P<seed>\d+)(?P<ood>_ood)?$"
+    r"p(?P<p>\d+)_(?P<op>\w+?)_f(?P<frac>[\d.]+)_(?P<pe>\w+?)_L(?P<layers>\d)_wd(?P<wd>[\d.]+)_s(?P<seed>\d+)(?P<ext>_x40)?(?P<ood>_ood)?$"
 )
 
 
@@ -105,12 +105,21 @@ def collect_h1(exp: Path = Path("experiments"), pattern: str = "") -> pd.DataFra
         met = onset_metrics(df, cap=int(cfg.get("epochs", 15000)))
         done = (run_dir / "checkpoints" / "ckpt_final.pt").exists()
         rows.append(dict(run=run_dir.name, done=done, **m.groupdict(), **met))
-    cols = ["run", "done", "p", "op", "frac", "pe", "layers", "wd", "seed", "ood",
+    cols = ["run", "done", "p", "op", "frac", "pe", "layers", "wd", "seed", "ext", "ood",
             "onset", "censored", "sharpness", "max_slope", "final_val_acc", "last_epoch"]
     out = pd.DataFrame(rows, columns=cols if not rows else None)
     if not out.empty:
         out["seed"] = out["seed"].astype(int)
         out["ood"] = out["ood"].notna() if "ood" in out else False
+        out["ext"] = out["ext"].notna() if "ext" in out else False
+        # A finished _x40 rerun supersedes its 15k-cap original (same seed =>
+        # identical trajectory to 15k, longer horizon). Keep exactly one row
+        # per condition; unfinished extensions do not eclipse the original.
+        key = ["p", "op", "frac", "pe", "layers", "wd", "seed", "ood"]
+        eclipsed = out[out.ext & out.done].set_index(key).index
+        out = out[~(~out.ext & out.set_index(key).index.isin(eclipsed))]
+        out = out[out.ext.eq(False) | out.done]
+        out = out.reset_index(drop=True)
     return out
 
 
@@ -292,14 +301,21 @@ def signatures_for_ckpt(run_dir: Path, ckpt: Path) -> dict:
 
 
 def collect_h2(exp: Path = Path("experiments"), trajectories: bool = False, pattern: str = "") -> pd.DataFrame:
-    rows = []
+    # one dir per condition; finished _x40 extensions supersede originals
+    chosen = {}
     for run_dir in sorted(exp.iterdir()):
         m = RUN_RE.match(run_dir.name)
-        ck_dir = run_dir / "checkpoints"
-        if not m or not (ck_dir / "ckpt_final.pt").exists():
+        if not m or not (run_dir / "checkpoints" / "ckpt_final.pt").exists():
             continue
         if pattern and pattern not in run_dir.name:
             continue
+        key = (m["p"], m["op"], m["frac"], m["pe"], m["layers"], m["wd"], m["seed"], bool(m["ood"]))
+        if key not in chosen or m["ext"]:
+            chosen[key] = run_dir
+    rows = []
+    for run_dir in chosen.values():
+        m = RUN_RE.match(run_dir.name)
+        ck_dir = run_dir / "checkpoints"
         ckpts = [ck_dir / "ckpt_final.pt"]
         if trajectories:
             ckpts = sorted(ck_dir.glob("ckpt_0*.pt")) + ckpts

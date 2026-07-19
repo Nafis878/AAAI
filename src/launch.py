@@ -8,6 +8,10 @@ Presets map to the proposal's passes (research_proposal.md §4):
     depth2    — 2-layer variant, 5 PE x seeds 0-1
     p97       — p=97, 5 PE x seeds 0-1
     ops       — sub & mul, {nope, learned, rope} x seed 0
+    extend40  — Pass C: 40k-epoch reruns of the 9 not-yet-grokked censored
+                core runs (D16). Deterministic seeds reproduce the 15k
+                trajectory exactly, then continue; saved as <name>_x40 so
+                the original runs stay untouched (append-only raw data).
 
 Usage:
     python -m src.launch --preset core
@@ -48,6 +52,14 @@ def jobs_for(preset: str):
     elif preset == "ops":
         for op, pe in itertools.product(("sub", "mul"), ("nope", "learned", "rope")):
             yield ["--pe", pe, "--seed", "0", "--op", op]
+    elif preset == "extend40":
+        # The 9 core runs still below 99% val acc at the 15k cap (worklog 10:53):
+        # all 4 sinusoidal seeds + the mid/low-transition stragglers.
+        targets = [("sinusoidal", 0), ("sinusoidal", 1), ("sinusoidal", 2), ("sinusoidal", 3),
+                   ("learned", 0), ("learned", 1), ("nope", 3), ("rope", 3), ("alibi", 3)]
+        for pe, s in targets:
+            name = f"p113_add_f0.3_{pe}_L1_wd1.0_s{s}_x40"
+            yield ["--pe", pe, "--seed", str(s), "--epochs", "40000", "--run-name", name]
     else:
         raise SystemExit(f"unknown preset {preset!r}")
 
@@ -67,7 +79,8 @@ def main():
 
         kept = []
         for q in queue:
-            name = run_name_for(train_parse(q))
+            parsed = train_parse(q)
+            name = parsed.run_name or run_name_for(parsed)
             if (Path("experiments") / name / "checkpoints" / "ckpt_final.pt").exists():
                 print(f"[launch] skip (done): {name}")
             else:

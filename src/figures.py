@@ -50,13 +50,22 @@ def save(fig, name: str):
 
 
 def core_runs():
-    rows = []
+    """Core-condition run dirs; a finished _x40 extension replaces its original."""
+    chosen = {}
     for run_dir in sorted(Path("experiments").iterdir()):
         m = RUN_RE.match(run_dir.name)
-        if m and not m["ood"] and m["layers"] == "1" and m["op"] == "add" and m["p"] == "113" \
-                and m["frac"] == "0.3" and (run_dir / "log.csv").exists():
-            rows.append((run_dir, m["pe"], int(m["seed"])))
-    return rows
+        if not (m and not m["ood"] and m["layers"] == "1" and m["op"] == "add"
+                and m["p"] == "113" and m["frac"] == "0.3" and (run_dir / "log.csv").exists()):
+            continue
+        key = (m["pe"], int(m["seed"]))
+        is_ext = bool(m["ext"])
+        ext_done = is_ext and (run_dir / "checkpoints" / "ckpt_final.pt").exists()
+        if key not in chosen:
+            if not is_ext or ext_done:
+                chosen[key] = run_dir
+        elif ext_done:
+            chosen[key] = run_dir
+    return [(d, pe, seed) for (pe, seed), d in chosen.items()]
 
 
 def fig1_dynamics():

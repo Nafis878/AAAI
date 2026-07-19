@@ -1,0 +1,19 @@
+{
+  "n": 10,
+  "loo_r2_signatures": 0.919452981611668,
+  "loo_r2_pe_label": -1.5942788375926922,
+  "spearman_sig_vs_ood": 0.9393939393939393,
+  "ood_acc_by_run": {
+    "p113_add_f0.3_alibi_L1_wd1.0_s0_ood": 0.2703,
+    "p113_add_f0.3_alibi_L1_wd1.0_s1_ood": 0.9973,
+    "p113_add_f0.3_learned_L1_wd1.0_s0_ood": 0.2539,
+    "p113_add_f0.3_learned_L1_wd1.0_s1_ood": 0.2505,
+    "p113_add_f0.3_nope_L1_wd1.0_s0_ood": 0.2689,
+    "p113_add_f0.3_nope_L1_wd1.0_s1_ood": 0.9986,
+    "p113_add_f0.3_rope_L1_wd1.0_s0_ood": 0.2662,
+    "p113_add_f0.3_rope_L1_wd1.0_s1_ood": 0.9959,
+    "p113_add_f0.3_sinusoidal_L1_wd1.0_s0_ood": 0.1858,
+    "p113_add_f0.3_sinusoidal_L1_wd1.0_s1_ood": 0.1572
+  },
+  "note": "modest-n supporting evidence (proposal H3), not standalone"
+}

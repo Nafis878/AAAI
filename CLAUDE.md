@@ -5,8 +5,8 @@
 3-day autonomous research project producing a novel, reproducible transformer paper meeting AAAI-27 quality standards.
 
 - **Day 1 (2026-07-18):** requirements, literature scoop check, problem commitment, data + training scaffolding, compute calibration. **Status: COMPLETE — see `research/day1/DAY1_REPORT.md`.**
-- **Day 2:** run the full experimental grid per `research/day1/research_proposal.md`; analysis + figures.
-- **Day 3:** write the paper in `paper/`, validate against the compliance checklist in `research/day1/aaai_requirements.md`.
+- **Day 2 (2026-07-19):** Pass A (20 core) + Pass B (10 OOD) executed and analyzed, 0 failures; figures built; headline claim established. **Status: COMPLETE — see `research/day2/DAY2_REPORT.md` + `results_analysis.md`. Pass C (9 × 40k extensions + seed 4) running overnight, ETA ~05:30–06:00.**
+- **Day 3:** harvest Pass C, finalize stats, write the paper in `paper/`, validate against the compliance checklist in `research/day1/aaai_requirements.md`.
 
 ## Research topic (BINDING — locked on Day 1)
 
@@ -39,10 +39,13 @@ logs/                — scratch logs (gitignored)
 - AAAI LLM policy (constrains Day 3): LLMs cannot be authors or cited sources; LLM-generated body text prohibited except as experimental artifact; AI use must be documented in the manuscript. See `research/day1/aaai_requirements.md`.
 - CPU-only machine (8C/16T Ryzen 5700G, 13.9 GB RAM). Cap total torch threads across parallel runs at 16. Day-2 grid budget: ~12 h; sized from measured timing in `research/day1/smoke_test.md`.
 
-## How Day 2 should start (target: training within 5 minutes)
+## How Day 3 should start
 
-1. Read this file, then `research/day1/research_proposal.md` (the binding plan) and `research/day1/smoke_test.md` (measured timing + launch commands).
-2. Sanity check: `.\.venv\Scripts\python.exe -m pytest -q` (must pass).
-3. Launch the core grid exactly as specified in the proposal's Day-2 schedule (the ready-to-run launcher command is in `smoke_test.md` / proposal §Day-2 schedule).
-4. While the grid runs, implement analysis code (Fourier metrics, restricted/excluded loss) — specs in the proposal.
-5. Log any deviations in `decisions.md`; update this file at session end.
+1. Read this file, then `research/day2/DAY2_REPORT.md` (run inventory, verdicts, risks) and `research/day2/results_analysis.md` (headline claim + figure placement). `decisions.md` D13–D16 cover Day-2 judgment calls.
+2. **Harvest Pass C first**: check `logs/passC.log` for "PASS C COMPLETE"; look at the sinusoidal `_x40` runs before anything else — they decide the headline wording ("blocks" vs "delays ≥Nx" grokking; DAY2_REPORT risk 1). If Pass C is still running, harvest what's done (`--skip-existing` relaunch if it crashed: `scripts/passC.ps1`).
+3. Regenerate everything: `python -m src.analysis --all && python -m src.figures --all` (finished `_x40` runs auto-supersede their originals), plus `--h2 --trajectories` for updated Fig 3. Re-run the matched-post-grok H2 permutation (now ~n=16–20) — it decides how H2 is framed (DAY2_REPORT risk 2).
+4. **Re-verify every citation** tagged `[UNVERIFIED — from seed]` or `[V-listed]` in `research/day1/DAY1_REPORT.md` §3 before it enters the paper; drop what can't be verified.
+5. Write the paper in `paper/` (AAAI-27 two-column, `aaai2027.sty`; get the author kit or fall back to a faithful .tex skeleton + build instructions). Include the AI-use documentation statement (mandatory: this project is AI-assisted research; human submitter is the author). Validate against the COMPLIANCE CHECKLIST in `research/day1/aaai_requirements.md` §8 before calling it done.
+6. Commit per phase; final push to origin.
+
+Useful commands: `python -m src.progress` (grid status), `scripts/pause_resume.ps1 -Action pause|resume` (freeze/unfreeze training).

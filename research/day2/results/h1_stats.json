@@ -1,0 +1,40 @@
+{
+  "n_runs": 20,
+  "censored_by_pe": {
+    "alibi": 3,
+    "learned": 3,
+    "nope": 2,
+    "rope": 3,
+    "sinusoidal": 4
+  },
+  "median_onset_by_pe": {
+    "alibi": 7130.0,
+    "learned": 9410.0,
+    "nope": 10072.5,
+    "rope": 8965.0,
+    "sinusoidal": null
+  },
+  "onset_ci_by_pe": {
+    "alibi": [
+      7130.0,
+      7130.0
+    ],
+    "learned": [
+      9410.0,
+      9410.0
+    ],
+    "nope": [
+      6370.0,
+      13775.0
+    ],
+    "rope": [
+      8965.0,
+      8965.0
+    ]
+  },
+  "logrank": {
+    "chi2": 2.5149937527629067,
+    "p": 0.641952956962637,
+    "df": 4
+  }
+}

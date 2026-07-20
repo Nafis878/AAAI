@@ -61,24 +61,30 @@ def make_splits(
     frac: float = 0.3,
     seed: int = 0,
     ood_a_range: tuple[int, int] | None = None,
+    ood_b_range: tuple[int, int] | None = None,
 ) -> Splits:
     """Build deterministic train/val (and optional OOD) splits.
 
     ood_a_range=(lo, hi) holds out ALL pairs with lo <= a <= hi from both
     train and val; they become the OOD evaluation set (proposal §2: (100, 112)).
+    ood_b_range does the same on the b operand (S-H3 alternative construction).
     The train set is `frac` of the remaining pairs, chosen by a seeded
     permutation; validation is everything else that is not OOD.
     """
     a, b = all_pairs(p)
     c = apply_op(a, b, op, p)
 
+    ood_mask = np.zeros_like(a, dtype=bool)
     if ood_a_range is not None:
         lo, hi = ood_a_range
         if not (0 <= lo <= hi < p):
             raise ValueError(f"ood_a_range {ood_a_range} out of [0, {p})")
-        ood_mask = (a >= lo) & (a <= hi)
-    else:
-        ood_mask = np.zeros_like(a, dtype=bool)
+        ood_mask |= (a >= lo) & (a <= hi)
+    if ood_b_range is not None:
+        lo, hi = ood_b_range
+        if not (0 <= lo <= hi < p):
+            raise ValueError(f"ood_b_range {ood_b_range} out of [0, {p})")
+        ood_mask |= (b >= lo) & (b <= hi)
 
     pool = np.flatnonzero(~ood_mask)
     rng = np.random.default_rng(seed)

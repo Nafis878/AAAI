@@ -24,3 +24,8 @@ experiments/**/checkpoints/
 .DS_Store
 Thumbs.db
 .vscode/
+
+# GPU/scratch run roots (regenerated on the T4; never mixed with CPU experiments/)
+experiments_gpu/
+experiments_tmp/
+experiments_sanity/

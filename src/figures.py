@@ -20,9 +20,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+import src.analysis as analysis
 from src.analysis import RESULTS, RUN_RE, collect_h1, read_log
 
 FIGDIR = Path("paper/figures")
+EXP = Path("experiments")
 PE_ORDER = ["nope", "learned", "sinusoidal", "rope", "alibi"]
 PE_COLOR = {"nope": "#0072B2", "learned": "#E69F00", "sinusoidal": "#56B4E9",
             "rope": "#009E73", "alibi": "#D55E00"}
@@ -52,7 +54,7 @@ def save(fig, name: str):
 def core_runs():
     """Core-condition run dirs; a finished _x40 extension replaces its original."""
     chosen = {}
-    for run_dir in sorted(Path("experiments").iterdir()):
+    for run_dir in sorted(EXP.iterdir()):
         m = RUN_RE.match(run_dir.name)
         if not (m and not m["ood"] and m["layers"] == "1" and m["op"] == "add"
                 and m["p"] == "113" and m["frac"] == "0.3" and (run_dir / "log.csv").exists()):
@@ -257,9 +259,21 @@ def table2():
 
 
 def main():
+    global RESULTS, EXP, FIGDIR
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--all", action="store_true")
+    ap.add_argument("--exp-root", default=None, help="run-output root (GPU: experiments_gpu)")
+    ap.add_argument("--out", default=None, help="results dir for tables/CSVs (GPU: research/week/results)")
+    ap.add_argument("--figdir", default=None, help="figure output dir (GPU: research/week/results/figures)")
     args = ap.parse_args()
+    if args.exp_root:
+        EXP = analysis.EXP = Path(args.exp_root)  # collect_h1 reads analysis.EXP
+    if args.out:
+        RESULTS = analysis.RESULTS = Path(args.out)
+    if args.figdir:
+        FIGDIR = Path(args.figdir)
+    elif args.out:
+        FIGDIR = RESULTS / "figures"
     if args.all:
         fig1_dynamics()
         fig2_onset()

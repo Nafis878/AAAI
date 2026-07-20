@@ -1,3 +1,17 @@
+# Results Analysis — FINAL (updated 2026-07-20 ~07:15 after Pass C + extend40b; original Day-2 version below)
+
+## FINAL verdicts (50 runs, 0 failures; all numbers from `analysis --all` @ final data)
+
+- **H1 — PARTIALLY SUPPORTED.** Sinusoidal delays grokking: 0/6 grokked at the 15k horizon vs 14/24 others (Fisher p=0.014, EXPLORATORY); with all extensions resolved, median onset 20,980 vs 14,350–15,215; every sinusoidal onset ≥15,650 (above 15/20 other-PE onsets). Pre-registered omnibus tests NULL at n=4–5/PE (Kruskal H=6.09 p=0.19; log-rank χ²=4.67 p=0.32; pairwise Holm ≥0.57) — reported in full. Seed variance ≈ PE variance except sinusoidal.
+- **H2 — SUPPORTED (revised direction).** Algorithm-level convergence: ALL grokked runs (incl. delayed sinusoidal) form the same Fourier circuit family (restricted loss ≈0, conc 0.83–0.88 — sinusoidal highest at 0.88). Pre-registered matched-post-grok permutation test POSITIVE with clean ≥1000-epoch-post-onset endpoints: **η²=0.368, p=0.001, n=20 balanced (4/PE)**. Driver: attention-facing metrics — uniform-ablation Δ groups by *where PE injects position*: RoPE 1.19 / ALiBi 1.96 (attention-level → attention-independent circuits) vs NoPE 4.00 / sinusoidal 4.19 / learned 5.59 (embedding-level or absent → attention-dependent). Interpretation post hoc. NOTE: earlier all-25-runs test read η²=0.11 p=0.84 because 6 endpoints were mid-transition cap checkpoints; extend40b replaced them with stabilized post-grok endpoints (D18) — the pre-registered "matched post-grok" conditioning is the valid one.
+- **H3 — SUPPORTED** (unchanged): signatures LOO R²=0.92 vs PE-label −1.59; ρ=0.94; grokked OOD runs 99.6–99.9% on held-out rows.
+
+**FINAL HEADLINE:** *PE choice leaves the grokked algorithm invariant but controls when it forms (sinusoidal delays ~1.4× median, 0/6 at standard horizons) and where it lives — attention-level PEs yield attention-ablation-robust circuits, embedding-level/absent PEs yield attention-dependent ones (η²=0.37, p=0.001) — and the circuit signature, not the PE label, predicts OOD (R² 0.92 vs −1.59).*
+
+Paper figure placement: Fig 2 (survival) + Fig 4 (signatures) + Fig 5 (OOD) main; Fig 1, Fig 3 main-if-space; Tables 1 in main.
+
+---
+
 # Day-2 Results Analysis (written 2026-07-19 ~19:10, after Pass A+B complete)
 
 All numbers regenerable via `python -m src.analysis --all && python -m src.figures --all`.

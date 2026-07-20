@@ -1,17 +1,17 @@
 {
   "n_runs": 25,
   "censored_by_pe": {
-    "alibi": 3,
-    "learned": 2,
-    "nope": 2,
-    "rope": 3,
+    "alibi": 1,
+    "learned": 1,
+    "nope": 1,
+    "rope": 1,
     "sinusoidal": 1
   },
   "median_onset_by_pe": {
-    "alibi": 11645.0,
-    "learned": 15810.0,
-    "nope": 13775.0,
-    "rope": 12750.0,
+    "alibi": 14705.0,
+    "learned": 15215.0,
+    "nope": 14350.0,
+    "rope": 15015.0,
     "sinusoidal": 20980.0
   },
   "onset_ci_by_pe": {
@@ -37,24 +37,24 @@
     ]
   },
   "kruskal": {
-    "H": 3.9666666666666686,
-    "p": 0.4105358219468227
+    "H": 6.085714285714289,
+    "p": 0.19283787147881792
   },
   "pairwise_mannwhitney_holm": {
-    "nope_vs_sinusoidal": 1.0,
-    "alibi_vs_sinusoidal": 1.0,
-    "rope_vs_sinusoidal": 1.0,
+    "alibi_vs_sinusoidal": 0.5714285714285714,
+    "rope_vs_sinusoidal": 0.5714285714285714,
+    "nope_vs_sinusoidal": 0.9142857142857143,
     "learned_vs_sinusoidal": 1.0,
-    "alibi_vs_rope": 1.0,
-    "learned_vs_nope": 1.0,
     "alibi_vs_learned": 1.0,
-    "learned_vs_rope": 1.0,
+    "learned_vs_nope": 1.0,
+    "nope_vs_rope": 1.0,
     "alibi_vs_nope": 1.0,
-    "nope_vs_rope": 1.0
+    "alibi_vs_rope": 1.0,
+    "learned_vs_rope": 1.0
   },
   "logrank": {
-    "chi2": 2.17889406057213,
-    "p": 0.7028951265815491,
+    "chi2": 4.672042952959173,
+    "p": 0.322632119358346,
     "df": 4
   }
 }

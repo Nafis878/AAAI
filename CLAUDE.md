@@ -6,7 +6,7 @@
 
 - **Day 1 (2026-07-18):** requirements, literature scoop check, problem commitment, data + training scaffolding, compute calibration. **Status: COMPLETE — see `research/day1/DAY1_REPORT.md`.**
 - **Day 2 (2026-07-19):** Pass A (20 core) + Pass B (10 OOD) executed and analyzed, 0 failures; figures built; headline claim established. **Status: COMPLETE — see `research/day2/DAY2_REPORT.md` + `results_analysis.md`. Pass C (9 × 40k extensions + seed 4) running overnight, ETA ~05:30–06:00.**
-- **Day 3:** harvest Pass C, finalize stats, write the paper in `paper/`, validate against the compliance checklist in `research/day1/aaai_requirements.md`.
+- **Day 3 (2026-07-20):** Pass C + extend40b harvested (50/50 runs, 0 failures); final stats locked (H2 flipped positive: η²=0.368, p=0.001); paper written with 12 verified citations. **Status: COMPLETE — see `research/day3/DAY3_REPORT.md`.** Two human-action items remain: build with the official author kit, and human revision/ownership of the AI-drafted prose (AAAI LLM policy) — detailed in DAY3_REPORT §4.
 
 ## Research topic (BINDING — locked on Day 1)
 

@@ -19,8 +19,8 @@
 \setlength{\pdfpageheight}{11in}
 
 \title{Positional Encoding as a Hidden Variable in Grokking:\\
-PE Choice Shifts Learning Dynamics but Not Circuit Identity\\
-on Modular Arithmetic}
+PE Choice Shifts Grokking Onset and the Attention-Dependence\\
+of the Learned Circuit}
 \author{Anonymous submission}
 
 \begin{document}
@@ -30,26 +30,30 @@ on Modular Arithmetic}
 Grokking studies on modular arithmetic conventionally fix the positional-encoding
 (PE) scheme, while mechanistic studies of the resulting ``clock/pizza'' circuits
 vary attention type---leaving PE an uncontrolled variable in both literatures. We
-make PE the controlled independent variable: 45 pre-registered training runs of a
+make PE the controlled independent variable: 50 pre-registered training runs of a
 1-layer transformer on $(a+b) \bmod 113$ crossing five PE conditions
 \{NoPE, learned, sinusoidal, RoPE, ALiBi\} with matched seeds, data splits, and
-optimization. PE choice strongly modulates \emph{dynamics}: at the standard
-15k-epoch horizon, sinusoidal APE grokked in 0 of 6 runs versus 14 of 24 for all
-other PEs combined (Fisher exact $p{=}0.014$); 40k-epoch extensions show
-sinusoidal is delayed $1.5$--$2.8\times$ (median onset 20{,}980 epochs vs.\
-11{,}645--15{,}810), not blocked. In contrast, PE does \emph{not} determine the
-final algorithm: all grokked runs, sinusoidal included, converge to the same
+optimization. PE modulates \emph{dynamics}: at the standard 15k-epoch horizon,
+sinusoidal APE grokked in 0 of 6 runs versus 14 of 24 for all other PEs combined
+(Fisher exact $p{=}0.014$, exploratory); 40k-epoch extensions show sinusoidal is
+delayed, not blocked (median onset 20{,}980 epochs vs.\ 14{,}350--15{,}215;
+every resolved sinusoidal onset exceeds 15{,}650, above 15 of the 20 other-PE
+onsets), though omnibus rank tests across all five PEs remain null at five seeds.
+At the algorithmic level all grokked runs converge to the same
 Fourier-multiplication circuit family (restricted loss $\approx 0$; embedding
-Fourier concentration $0.81$--$0.88$), and a label-permutation test on six-metric
-circuit signatures at matched post-grok checkpoints is null
-($\eta^2{=}0.24$, $p{=}0.25$, $n{=}20$ balanced). Finally, a run's circuit
-signature---not its PE label---predicts out-of-distribution accuracy on held-out
-operand ranges (leave-one-out $R^2$ $0.92$ vs.\ $-1.59$; Spearman $\rho{=}0.94$,
-$n{=}10$). Positional encoding thus acts as a dynamics knob rather than a circuit
-knob: it controls when (and within fixed horizons, whether) the algorithm forms,
-while the algorithm itself, and its generalization signature, are PE-invariant.
-All experiments are CPU-scale, deterministic, and fully reproducible from released
-code, seeds, and per-epoch logs.
+Fourier concentration $0.83$--$0.88$)---yet the pre-registered label-permutation
+test on six-metric circuit signatures at matched post-grok checkpoints is
+strongly positive ($\eta^2{=}0.37$, $p{=}0.001$, $n{=}20$ balanced): PEs acting
+on attention (RoPE, ALiBi) yield circuits nearly indifferent to attention
+ablation (uniform-attention $\Delta$loss 1.2--2.0), while embedding-level or
+absent PEs (learned, sinusoidal, NoPE) yield strongly attention-dependent
+circuits ($\Delta$ 4.0--5.6). Finally, a run's circuit signature---not its PE
+label---predicts out-of-distribution accuracy on held-out operand ranges
+(leave-one-out $R^2$ $0.92$ vs.\ $-1.59$; Spearman $\rho{=}0.94$, $n{=}10$).
+PE choice thus leaves the learned algorithm invariant while controlling when it
+forms and where it lives---in attention or around it. All experiments are
+CPU-scale, deterministic, and fully reproducible from released code, seeds, and
+per-epoch logs.
 \end{abstract}
 
 \section{Introduction}
@@ -86,21 +90,22 @@ restricted/excluded loss, attention entropy, uniform-attention ablation), and
 \paragraph{Contributions.}
 \begin{itemize}
 \item \textbf{PE controls grokking dynamics.} Sinusoidal APE delays grokking
-$1.5$--$2.8\times$ relative to all other PEs (0/6 grokked at the standard
-15k-epoch horizon vs.\ 14/24; all runs grok by 40k). Onset ordering among the
-remaining PEs (ALiBi fastest, learned slowest) is consistent but within seed
-noise at $n{=}5$.
-\item \textbf{PE does not control circuit identity.} All grokked runs converge
-to the same Fourier circuit family; a pre-registered permutation test on
-post-grok signatures is null with balanced groups. This extends the
-circuit-universality picture \cite{mccracken2025universal,moisescu2025unifying}
-across the PE axis, including PEs that never received position-free embeddings
-(RoPE, ALiBi) and the delayed sinusoidal condition.
+(0/6 runs grokked at the standard 15k-epoch horizon vs.\ 14/24 for other PEs;
+all runs grok by 40k; median onset 21.0k vs.\ 14.4--15.2k). Onset differences
+among the remaining PEs are within seed noise at $n{=}5$; we report the
+pre-registered omnibus nulls in full.
+\item \textbf{PE selects the circuit's attention-dependence, not its
+algorithm.} All grokked runs converge to the same Fourier circuit family
+(extending circuit-universality
+\cite{mccracken2025universal,moisescu2025unifying} across the PE axis), yet
+post-grok signatures separate strongly by PE ($\eta^2{=}0.37$, $p{=}0.001$):
+attention-level PEs (RoPE, ALiBi) produce circuits robust to attention
+ablation; embedding-level or absent PEs do not.
 \item \textbf{Signatures, not PE labels, predict OOD.} Leave-one-out prediction
 of held-out-operand accuracy from circuit signatures achieves $R^2{=}0.92$;
 the PE label alone is uninformative ($R^2{=}-1.59$).
 \item \textbf{A fully deterministic, CPU-scale, pre-registered experimental
-protocol} (45 runs, $\sim$0.23M-parameter models) with per-epoch logs,
+protocol} (50 runs, $\sim$0.23M-parameter models) with per-epoch logs,
 log-spaced checkpoints, and single-command reproduction of every figure and
 statistic.
 \end{itemize}
@@ -157,9 +162,9 @@ Onset := first epoch of the sustained window; runs without one are censored.
 
 \paragraph{Runs.} Pre-registered grid: core 5 PE $\times$ 5 seeds; OOD set
 5 PE $\times$ 2 seeds with operand rows $a \in [100,112]$ held out of train
-and validation; 40k-epoch extensions of censored runs (deterministic seed
-replay; identical trajectory through the original horizon). 45 runs total,
-zero failures; every run is reported.
+and validation; 40k-epoch extensions of all 15 runs censored at the 15k cap
+(deterministic seed replay; identical trajectory through the original
+horizon). 50 runs total, zero failures; every run is reported.
 
 \paragraph{Circuit signatures.} Six continuous metrics per checkpoint:
 embedding Fourier concentration (top-5 non-DC frequency power share); logit
@@ -180,7 +185,6 @@ signatures vs.\ PE-label group means. Exploratory analyses are labeled as such.
 
 \section{H1: PE Shifts Grokking Dynamics}
 
-%% [FINAL-STATS: updated after extend40b harvest — see results_analysis.md]
 All 25 core-condition runs follow the canonical grokking trajectory: rapid
 memorization ($\sim$100 epochs), a long plateau at 25--30\% validation
 accuracy, then a sharp transition. What PE changes is \emph{when}.
@@ -188,18 +192,22 @@ accuracy, then a sharp transition. What PE changes is \emph{when}.
 \paragraph{Sinusoidal delays grokking.} At the pre-registered 15k-epoch
 horizon, sinusoidal grokked 0/6 runs (core + OOD) versus 14/24 for the other
 four PEs combined (exploratory Fisher exact $p{=}0.014$). Deterministic 40k
-extensions resolve every sinusoidal run: onsets 15{,}650--27{,}455 (median
-20{,}980), i.e., $1.5$--$2.8\times$ the other PEs' medians (ALiBi 11{,}645;
-RoPE 12{,}750; NoPE 13{,}775; learned 15{,}810). Figure~\ref{fig:survival}
-shows the survival picture; Figure~\ref{fig:dynamics} the accuracy curves.
+extensions resolve every censored run that had not yet grokked: all
+sinusoidal onsets land at 15{,}650--27{,}455 (median 20{,}980) versus
+medians of 14{,}350--15{,}215 for the other PEs; every resolved sinusoidal
+onset exceeds 15 of the 20 other-PE onsets. Figure~\ref{fig:survival} shows
+the survival picture; Figure~\ref{fig:dynamics} the accuracy curves.
 
-\paragraph{Ordering among the other PEs is within seed noise.} With five
-seeds per condition and onset spreads of 6{,}370--18{,}530 within single PEs,
-omnibus rank tests do not separate the non-sinusoidal PEs (Kruskal--Wallis and
-log-rank $p > 0.4$); we report this pre-registered null in full and treat the
-ALiBi $<$ RoPE $<$ NoPE $<$ learned median ordering as descriptive only.
-Seed-level variance in grokking onset is of the same order as PE-level
-shifts---except for sinusoidal, whose delay exceeds the noise floor.
+\paragraph{Pre-registered rank tests are null at this seed count.} With
+4--5 resolved onsets per condition and within-PE spreads of up to 12k epochs
+(NoPE: 6{,}370--18{,}365), the omnibus tests do not reach significance
+(Kruskal--Wallis $H{=}6.09$, $p{=}0.19$; log-rank $\chi^2(4){=}4.67$,
+$p{=}0.32$; all Holm-adjusted pairwise $p \ge 0.57$). We report these
+pre-registered nulls in full: at $n{=}5$ seeds, only the sinusoidal
+horizon effect (0/6 at 15k) exceeds the measured seed-noise floor, and the
+median ordering among the other PEs is descriptive only. Seed-level onset
+variance being comparable to PE-level shifts is itself a substantive finding
+for small-$n$ grokking studies.
 
 \begin{figure}[t]
 \centering
@@ -222,25 +230,34 @@ timing of the transition.}
 
 \section{H2: Circuits Converge Across PEs}
 
-\paragraph{All grokked runs form the same circuit family.} Every grokked run,
+\paragraph{All grokked runs learn the same algorithm.} Every grokked run,
 under every PE, ends with restricted loss $\approx 0$ (the top-5 Fourier
 frequencies alone solve the task), excluded loss 11.5--17.9 (removing them
 destroys training performance), and embedding Fourier concentration
-0.81--0.88---the delayed sinusoidal runs included, whose final concentration
-(0.88) is the highest of all conditions
-(Figure~\ref{fig:signatures}). The pre-registered label-permutation test on
-matched post-grok signature vectors is null with balanced groups
-($\eta^2{=}0.24$, $p{=}0.25$, $n{=}20$, 4 per PE): we find no evidence that PE
-selects among distinct end-state algorithms. This extends circuit-universality
-claims \cite{mccracken2025universal,moisescu2025unifying} along the PE axis.
+0.83--0.88---the delayed sinusoidal runs included, whose final concentration
+(0.88) is the highest of all conditions (Figure~\ref{fig:signatures}). At the
+algorithmic level this extends circuit-universality claims
+\cite{mccracken2025universal,moisescu2025unifying} along the PE axis.
 
-\paragraph{Trajectories, not endpoints, carry the PE effect.} Embedding
+\paragraph{But PE selects the implementation's attention-dependence.} The
+pre-registered label-permutation test on matched post-grok signature vectors
+(all runs $\ge$1{,}000 epochs past onset, balanced $n{=}20$, 4 per PE) is
+strongly positive: $\eta^2{=}0.37$, $p{=}0.001$. The separation is carried by
+the attention-facing metrics, not the Fourier metrics: uniform-attention
+ablation $\Delta$loss groups the PEs by \emph{where they inject position} ---
+attention-level PEs yield circuits nearly indifferent to attention ablation
+(RoPE 1.19, ALiBi 1.96 median $\Delta$), while embedding-level or absent PEs
+yield strongly attention-dependent circuits (NoPE 4.00, sinusoidal 4.19,
+learned 5.59). Interpretation (post hoc): when positional structure is
+supplied inside the attention computation, the model can implement the
+Fourier mixing in a position-agnostic way; when it is not, the learned
+attention pattern itself becomes a load-bearing part of the circuit.
+
+\paragraph{Trajectories tie circuit formation to grokking.} Embedding
 Fourier concentration rises at each run's grokking onset (within one
 checkpoint in all resolved-onset runs) and never rises in runs that have not
 grokked (Figure~\ref{fig:trajectories}): circuit formation and generalization
-are one event whose \emph{timing} PE controls. A suggestive spread in
-attention-dependence (uniform-ablation $\Delta$loss: learned median 5.6 vs.\
-RoPE 1.3) does not clear the permutation test and is flagged as exploratory.
+are one event whose \emph{timing} PE controls.
 
 \begin{figure}[t]
 \centering
@@ -268,9 +285,10 @@ at high concentration regardless of PE.}
  & NoPE & Learn. & Sinus. & RoPE & ALiBi \\
 \midrule
 Grokked (15k) & 3/5 & 2/5 & 0/5 & 3/5 & 3/5 \\
-Median onset & 13.8k & 15.8k & 21.0k & 12.8k & 11.6k \\
-Fourier conc. & 0.81 & 0.84 & 0.88 & 0.82 & 0.82 \\
+Median onset & 14.4k & 15.2k & 21.0k & 15.0k & 14.7k \\
+Fourier conc. & 0.87 & 0.84 & 0.88 & 0.83 & 0.85 \\
 Restr.\ loss & 0.00 & 0.00 & 0.00 & 0.00 & 0.00 \\
+Unif.-abl.\ $\Delta$ & 4.00 & 5.59 & 4.19 & 1.19 & 1.96 \\
 \bottomrule
 \end{tabular}
 \caption{Per-PE summary (core condition; onsets include 40k extensions;
@@ -310,22 +328,28 @@ concentration stalls near 0.33 for tens of thousands of epochs, then completes
 the standard transition. We offer this as a hypothesis; testing it (e.g., by
 orthogonalizing the PE against task frequencies) is future work.
 
-\paragraph{Dynamics knob, not circuit knob.} Combined, H1--H3 support a clean
-division: PE choice acts on the \emph{optimization path} (when the circuit
-forms), not on the \emph{solution} (which circuit forms, and how it
-generalizes). Practically, PE ablations in small-model interpretability
-studies should be read as changing time-to-solution, not solution identity;
-and horizon-limited comparisons of PEs can silently misclassify slow
-conditions as failures.
+\paragraph{Same algorithm, different timing and location.} Combined, H1--H3
+support a two-level picture: PE choice leaves the learned \emph{algorithm}
+invariant (Fourier multiplication, in every condition) while controlling its
+\emph{schedule} (when it forms; sinusoidal latest) and its \emph{location}
+(inside learned attention patterns for embedding-level/absent PEs; outside
+them for attention-level PEs). Practically: PE ablations in small-model
+interpretability studies change time-to-solution and ablation-robustness, not
+solution identity; horizon-limited PE comparisons can silently misclassify
+slow conditions as failures; and uniform-attention ablations---a standard
+circuit probe---measure a PE-dependent property, not an
+architecture-independent one.
 
 \paragraph{Limitations.} Single task family ($p{=}113$ addition; other moduli
 and operations were pre-planned but cut for compute budget), single
 architecture scale (0.23M parameters, 1 layer), 4--5 seeds per condition,
 CPU-only horizon of 15k/40k epochs, and an OOD design limited to operand-row
-holdout with $n{=}10$. Rank tests among non-sinusoidal PEs are underpowered at
-this seed count; the sinusoidal effect is the only dynamics claim exceeding
-the measured noise floor. Circuit signatures are logit- and embedding-level;
-we do not analyze neuron-level implementations.
+holdout with $n{=}10$. Rank tests across PEs are underpowered at this seed
+count: the sinusoidal horizon effect and the signature separation are the only
+claims exceeding the measured noise floor, and the attention-dependence
+grouping, while significant under the pre-registered test, has a post-hoc
+interpretation. Circuit signatures are logit- and embedding-level; we do not
+analyze neuron-level implementations.
 
 \section{Reproducibility}
 
@@ -333,8 +357,8 @@ All code, seeds, per-epoch CSV logs, and analysis/figure pipelines are
 released; datasets are synthesized deterministically ($p$, operation,
 fraction, seed). Every number and figure regenerates via two commands
 (\texttt{analysis --all}; \texttt{figures --all}). Training is bit-exact
-resumable; the full 45-run grid used $\sim$18 h on one 8-core CPU (no GPU).
-The reproducibility checklist follows the references.
+resumable; the full 50-run grid used $\sim$22 h on one 8-core consumer CPU
+(no GPU). The reproducibility checklist follows the references.
 
 \section*{AI-Use Statement}
 

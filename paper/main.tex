@@ -356,9 +356,12 @@ analyze neuron-level implementations.
 All code, seeds, per-epoch CSV logs, and analysis/figure pipelines are
 released; datasets are synthesized deterministically ($p$, operation,
 fraction, seed). Every number and figure regenerates via two commands
-(\texttt{analysis --all}; \texttt{figures --all}). Training is bit-exact
-resumable; the full 50-run grid used $\sim$22 h on one 8-core consumer CPU
-(no GPU). The reproducibility checklist follows the references.
+(\texttt{analysis --all}; \texttt{figures --all}); the headline matched
+post-grok test is the committed \texttt{analysis --matched} path, which
+reproduces $\eta^2{=}0.368$, $p{=}0.001$, $n{=}20$ from the released logs.
+Training is bit-exact resumable and device-agnostic; the full 50-run grid
+used $\sim$22 h on one 8-core consumer CPU (no GPU). The reproducibility
+checklist follows the references.
 
 \section*{AI-Use Statement}
 

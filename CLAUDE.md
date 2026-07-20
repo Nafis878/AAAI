@@ -7,6 +7,13 @@
 - **Day 1 (2026-07-18):** requirements, literature scoop check, problem commitment, data + training scaffolding, compute calibration. **Status: COMPLETE — see `research/day1/DAY1_REPORT.md`.**
 - **Day 2 (2026-07-19):** Pass A (20 core) + Pass B (10 OOD) executed and analyzed, 0 failures; figures built; headline claim established. **Status: COMPLETE — see `research/day2/DAY2_REPORT.md` + `results_analysis.md`. Pass C (9 × 40k extensions + seed 4) running overnight, ETA ~05:30–06:00.**
 - **Day 3 (2026-07-20):** Pass C + extend40b harvested (50/50 runs, 0 failures); final stats locked (H2 flipped positive: η²=0.368, p=0.001); paper written with 12 verified citations. **Status: COMPLETE — see `research/day3/DAY3_REPORT.md`.** Two human-action items remain: build with the official author kit, and human revision/ownership of the AI-drafted prose (AAAI LLM policy) — detailed in DAY3_REPORT §4.
+- **Session 4 (2026-07-20):** GPU-grid prep. Fixed W4 (headline H2 number now regenerates via `analysis --matched`), made training device-agnostic (`--device`), built the resumable GPU orchestrator (`src/run_week.py`) + sanity/parity/calibration (`src/sanity.py`), pre-registered the strengthening addendum (`research/week/strengthening_plan.md`), and wrote the T4 runbook. **Status: COMPLETE — everything pushed; the human runs `T4_RUNBOOK.md` on a T4. Experiments NOT run this session (no GPU here).**
+
+## How Session 5 (integration) should start
+1. Harvest GPU results from `research/week/results/` (the T4 runbook's orchestrator computed them there and pushed; or unpack the `pack_results.sh` zip and run `python -m src.analysis --all --exp-root experiments_gpu --out research/week/results && python -m src.figures --all --exp-root experiments_gpu --out research/week/results`).
+2. Read `research/week/strengthening_plan.md` success/partial/failure criteria BEFORE looking at numbers; apply the S-H1/S-R1/S-H3 verdicts honestly (including nulls).
+3. Fold numbers/figures into `paper/main.tex` via the mechanical map in `paper/RESULTS_TODO.md`; GPU = primary stats, 50 CPU runs = cross-hardware replication (never pooled).
+4. Human-only submission items are in `SUBMISSION_CHECKLIST.md` (abstract July 21, full paper July 28, prose ownership).
 
 ## Research topic (BINDING — locked on Day 1)
 

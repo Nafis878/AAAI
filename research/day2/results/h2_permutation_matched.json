@@ -1,0 +1,34 @@
+{
+  "eta2": 0.36788076848169227,
+  "p_perm": 0.000999900009999,
+  "n": 20,
+  "per_pe_n": {
+    "alibi": 4,
+    "learned": 4,
+    "nope": 4,
+    "rope": 4,
+    "sinusoidal": 4
+  },
+  "runs": [
+    "p113_add_f0.3_alibi_L1_wd1.0_s0_x40",
+    "p113_add_f0.3_alibi_L1_wd1.0_s1",
+    "p113_add_f0.3_alibi_L1_wd1.0_s2_x40",
+    "p113_add_f0.3_alibi_L1_wd1.0_s3_x40",
+    "p113_add_f0.3_learned_L1_wd1.0_s0_x40",
+    "p113_add_f0.3_learned_L1_wd1.0_s1_x40",
+    "p113_add_f0.3_learned_L1_wd1.0_s2_x40",
+    "p113_add_f0.3_learned_L1_wd1.0_s3",
+    "p113_add_f0.3_nope_L1_wd1.0_s0",
+    "p113_add_f0.3_nope_L1_wd1.0_s1",
+    "p113_add_f0.3_nope_L1_wd1.0_s2_x40",
+    "p113_add_f0.3_nope_L1_wd1.0_s3_x40",
+    "p113_add_f0.3_rope_L1_wd1.0_s0_x40",
+    "p113_add_f0.3_rope_L1_wd1.0_s1",
+    "p113_add_f0.3_rope_L1_wd1.0_s2_x40",
+    "p113_add_f0.3_rope_L1_wd1.0_s3_x40",
+    "p113_add_f0.3_sinusoidal_L1_wd1.0_s0_x40",
+    "p113_add_f0.3_sinusoidal_L1_wd1.0_s1_x40",
+    "p113_add_f0.3_sinusoidal_L1_wd1.0_s2_x40",
+    "p113_add_f0.3_sinusoidal_L1_wd1.0_s3_x40"
+  ]
+}

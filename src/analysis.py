@@ -327,6 +327,32 @@ def collect_h2(exp: Path = Path("experiments"), trajectories: bool = False, patt
     return pd.DataFrame(rows)
 
 
+def matched_postgrok_subset(h1df: pd.DataFrame, sig_df: pd.DataFrame) -> pd.DataFrame:
+    """The pre-registered H2 conditioning: core-condition runs with a resolved
+    onset whose final checkpoint is >=1000 epochs post-onset (guaranteed by the
+    early-stop rule for resolved runs; finished _x40 extensions supersede their
+    originals via collect_h1). Returns the final-signature rows of those runs."""
+    core = h1df[(~h1df.ood) & (h1df.layers == "1") & (~h1df.censored)].copy()
+    core = core[core.last_epoch >= core.onset + SUSTAIN - 5]  # -5: eval grid granularity
+    rows = sig_df[(sig_df.epoch == -1) & (~sig_df.ood) & sig_df.run.isin(core.run)]
+    return rows
+
+
+def matched_test(write: bool = True) -> dict:
+    """Committed code path for the paper's headline H2 number (W4 fix, D19)."""
+    h1df = collect_h1()
+    sig_path = RESULTS / "h2_final_signatures.csv"
+    sig_df = pd.read_csv(sig_path) if sig_path.exists() else collect_h2()
+    sub = matched_postgrok_subset(h1df, sig_df)
+    out = permutation_test_signatures(sub)
+    out["per_pe_n"] = sub.groupby("pe").size().to_dict()
+    out["runs"] = sorted(sub.run.tolist())
+    if write:
+        RESULTS.mkdir(parents=True, exist_ok=True)
+        (RESULTS / "h2_permutation_matched.json").write_text(json.dumps(out, indent=2))
+    return out
+
+
 def permutation_test_signatures(df: pd.DataFrame, n_perm: int = 10000) -> dict:
     """PE label vs final-signature vectors: between/total variance statistic."""
     X = df[SIG_KEYS].to_numpy(float)
@@ -412,6 +438,8 @@ def main():
     ap.add_argument("--h1", action="store_true")
     ap.add_argument("--h2", action="store_true")
     ap.add_argument("--h3", action="store_true")
+    ap.add_argument("--matched", action="store_true",
+                    help="matched post-grok H2 permutation test (the paper's headline number)")
     ap.add_argument("--trajectories", action="store_true", help="H2 per-checkpoint (slow)")
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--pattern", default="", help="substring filter on run names")
@@ -438,6 +466,9 @@ def main():
         res = h3_analysis(collect_h1(), collect_h2())
         (RESULTS / "h3_ood.json").write_text(json.dumps(res, indent=2, default=str))
         print("H3:", json.dumps(res, indent=2, default=str))
+    if args.matched or args.all:
+        res = matched_test()
+        print("H2 matched post-grok:", json.dumps({k: res[k] for k in ("eta2", "p_perm", "n", "per_pe_n")}, indent=2))
 
 
 if __name__ == "__main__":

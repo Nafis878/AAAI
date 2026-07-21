@@ -31,7 +31,6 @@ from src.model import ModelConfig, Transformer
 from src.train import load_ckpt
 
 RESULTS = Path("research/day2/results")
-EXP = Path("experiments")  # run-output root; overridden by --exp-root (GPU: experiments_gpu)
 VAL_TARGET = 0.99
 SUSTAIN = 1000  # epochs, per proposal
 TOPK = 5  # key frequencies
@@ -87,18 +86,11 @@ def _early_stopped(df: pd.DataFrame, cap: int) -> bool:
 
 
 RUN_RE = re.compile(
-    r"p(?P<p>\d+)_(?P<op>\w+?)_f(?P<frac>[\d.]+)_(?P<pe>\w+?)_L(?P<layers>\d)_wd(?P<wd>[\d.]+)_s(?P<seed>\d+)"
-    r"(?P<ext>_x40)?(?P<ood>_ood)?(?P<oodb>_oodb)?$"
+    r"p(?P<p>\d+)_(?P<op>\w+?)_f(?P<frac>[\d.]+)_(?P<pe>\w+?)_L(?P<layers>\d)_wd(?P<wd>[\d.]+)_s(?P<seed>\d+)(?P<ext>_x40)?(?P<ood>_ood)?$"
 )
 
 
-def setting_of(m) -> str:
-    """Replication-setting key for S-R1 (PE and seed vary within a setting)."""
-    return f"p{m['p']}_{m['op']}_L{m['layers']}"
-
-
-def collect_h1(exp: Path | None = None, pattern: str = "") -> pd.DataFrame:
-    exp = exp if exp is not None else EXP
+def collect_h1(exp: Path = Path("experiments"), pattern: str = "") -> pd.DataFrame:
     rows = []
     for run_dir in sorted(exp.iterdir()):
         m = RUN_RE.match(run_dir.name)
@@ -308,8 +300,7 @@ def signatures_for_ckpt(run_dir: Path, ckpt: Path) -> dict:
     return out
 
 
-def collect_h2(exp: Path | None = None, trajectories: bool = False, pattern: str = "") -> pd.DataFrame:
-    exp = exp if exp is not None else EXP
+def collect_h2(exp: Path = Path("experiments"), trajectories: bool = False, pattern: str = "") -> pd.DataFrame:
     # one dir per condition; finished _x40 extensions supersede originals
     chosen = {}
     for run_dir in sorted(exp.iterdir()):
@@ -343,12 +334,12 @@ def matched_postgrok_subset(h1df: pd.DataFrame, sig_df: pd.DataFrame) -> pd.Data
     originals via collect_h1). Returns the final-signature rows of those runs."""
     core = h1df[(~h1df.ood) & (h1df.layers == "1") & (~h1df.censored)].copy()
     core = core[core.last_epoch >= core.onset + SUSTAIN - 5]  # -5: eval grid granularity
-    rows = sig_df[(sig_df.epoch == -1) & (~sig_df.ood) & sig_df.run.isin(core.run)]
-    return rows
+    return sig_df[(sig_df.epoch == -1) & (~sig_df.ood) & sig_df.run.isin(core.run)]
 
 
 def matched_test(write: bool = True) -> dict:
-    """Committed code path for the paper's headline H2 number (W4 fix, D19)."""
+    """Committed code path for the paper's headline H2 number (W4 fix, D19):
+    matched post-grok permutation test -> h2_permutation_matched.json."""
     h1df = collect_h1()
     sig_path = RESULTS / "h2_final_signatures.csv"
     sig_df = pd.read_csv(sig_path) if sig_path.exists() else collect_h2()
@@ -382,70 +373,6 @@ def permutation_test_signatures(df: pd.DataFrame, n_perm: int = 10000) -> dict:
     return {"eta2": float(obs), "p_perm": p, "n": len(df)}
 
 
-# -------------------------------------------- S-R1: cross-setting replication
-
-
-def sinusoidal_delay_rank(h1_setting: pd.DataFrame) -> dict:
-    """Per-setting S-R1 readout (a): is sinusoidal's median onset the largest?
-    Returns rank (1=fastest..5=slowest) of sinusoidal among the 5 PEs."""
-    med = (h1_setting[~h1_setting.censored].groupby("pe")["onset"].median()
-           .sort_values())
-    order = list(med.index)
-    rank = order.index("sinusoidal") + 1 if "sinusoidal" in order else None
-    return {"pe_order_fast_to_slow": order, "sinusoidal_rank": rank,
-            "sinusoidal_is_slowest": rank == len(order) if rank else None,
-            "medians": med.to_dict()}
-
-
-def attention_split_delta(sig_setting: pd.DataFrame) -> dict:
-    """S-R1 readout (c): attention-level PEs (rope/alibi) vs embedding-level/absent
-    (nope/sinusoidal/learned) on uniform-ablation delta. Direction: attention-
-    level LOWER (attention-independent circuits)."""
-    att = sig_setting[sig_setting.pe.isin(["rope", "alibi"])]["uniform_ablation_delta"]
-    emb = sig_setting[sig_setting.pe.isin(["nope", "sinusoidal", "learned"])]["uniform_ablation_delta"]
-    if att.empty or emb.empty:
-        return {"note": "insufficient runs"}
-    return {"attention_level_median": float(att.median()),
-            "embedding_level_median": float(emb.median()),
-            "direction_holds": bool(att.median() < emb.median())}
-
-
-def stratified_permutation(sig_all: pd.DataFrame, setting_col: str = "setting",
-                           n_perm: int = 10000) -> dict:
-    """S-R1 combined: pool settings, permute PE labels WITHIN each setting
-    (preserves setting structure), statistic = mean within-setting eta^2."""
-    X = sig_all[SIG_KEYS].to_numpy(float)
-    X = (X - X.mean(0)) / np.where(X.std(0) > 0, X.std(0), 1)
-    sig_all = sig_all.reset_index(drop=True)
-    settings = sig_all[setting_col].to_numpy()
-    pe = sig_all["pe"].to_numpy()
-
-    def eta2_within(labels):
-        vals = []
-        for s in np.unique(settings):
-            m = settings == s
-            Xs, ls = X[m], labels[m]
-            grand = Xs.mean(0)
-            between = sum((ls == u).sum() * ((Xs[ls == u].mean(0) - grand) ** 2).sum()
-                          for u in np.unique(ls))
-            total = ((Xs - grand) ** 2).sum()
-            if total > 0:
-                vals.append(between / total)
-        return float(np.mean(vals)) if vals else 0.0
-
-    obs = eta2_within(pe)
-    rng = np.random.default_rng(0)
-    null = []
-    for _ in range(n_perm):
-        perm = pe.copy()
-        for s in np.unique(settings):
-            m = settings == s
-            perm[m] = rng.permutation(perm[m])
-        null.append(eta2_within(perm))
-    p = float((np.sum(np.asarray(null) >= obs) + 1) / (n_perm + 1))
-    return {"mean_within_setting_eta2": obs, "p_perm": p, "n_settings": int(len(np.unique(settings)))}
-
-
 # ---------------------------------------------------------------------- H3: OOD
 
 
@@ -457,7 +384,7 @@ def h3_analysis(h1df: pd.DataFrame, h2df: pd.DataFrame) -> dict:
         return {"note": "no OOD runs found"}
     acc = {}
     for _, r in ood_runs.iterrows():
-        df = read_log(EXP / r["run"])
+        df = read_log(Path("experiments") / r["run"])
         if "ood_acc" in df and df["ood_acc"].notna().any():
             acc[r["run"]] = float(df["ood_acc"].dropna().iloc[-1])
     sig = h2df[h2df.ood & (h2df.epoch == -1)].set_index("run")
@@ -493,49 +420,30 @@ def h3_analysis(h1df: pd.DataFrame, h2df: pd.DataFrame) -> dict:
         same = mask & (pe == pe[i])
         return float(y[same].mean()) if same.any() else float(y[mask].mean())
 
-    # S-H3 (W3 defuse): binary grokked-flag baseline. If signatures don't beat
-    # this, H3's honest contribution is "signature >= grok status; PE label doesn't".
-    grok = np.array([acc[r] >= 0.5 for r in common])  # OOD acc bimodal (~0.2 vs ~1.0)
-
-    def grok_pred(mask, i):
-        same = mask & (grok == grok[i])
-        return float(y[same].mean()) if same.any() else float(y[mask].mean())
-
     from scipy.stats import spearmanr
 
     r2_sig = float(r2(loo_pred(sig_pred)))
     r2_pe = float(r2(loo_pred(pe_pred)))
-    r2_grok = float(r2(loo_pred(grok_pred)))
     rho = spearmanr(X @ np.linalg.lstsq(X, y - y.mean(), rcond=None)[0], y)
     return {"n": len(common), "loo_r2_signatures": r2_sig, "loo_r2_pe_label": r2_pe,
-            "loo_r2_grok_flag": r2_grok, "signatures_beat_grok_flag": r2_sig > r2_grok,
             "spearman_sig_vs_ood": float(rho.statistic), "ood_acc_by_run": acc,
-            "note": "modest-n supporting evidence (proposal H3). grok-flag baseline "
-                    "pre-registered (S-H3): if signatures do not beat it, report "
-                    "'signature superset of grok status; PE label is not' honestly."}
+            "note": "modest-n supporting evidence (proposal H3), not standalone"}
 
 
 # ------------------------------------------------------------------------- CLI
 
 
 def main():
-    global RESULTS, EXP
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--h1", action="store_true")
     ap.add_argument("--h2", action="store_true")
     ap.add_argument("--h3", action="store_true")
     ap.add_argument("--matched", action="store_true",
-                    help="matched post-grok H2 permutation test (the paper's headline number)")
+                    help="matched post-grok H2 permutation test (the paper's headline number, W4)")
     ap.add_argument("--trajectories", action="store_true", help="H2 per-checkpoint (slow)")
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--pattern", default="", help="substring filter on run names")
-    ap.add_argument("--exp-root", default=None, help="run-output root (GPU: experiments_gpu)")
-    ap.add_argument("--out", default=None, help="results output dir (GPU: research/week/results)")
     args = ap.parse_args()
-    if args.exp_root:
-        EXP = Path(args.exp_root)
-    if args.out:
-        RESULTS = Path(args.out)
     RESULTS.mkdir(parents=True, exist_ok=True)
 
     if args.h1 or args.all or args.h3:
